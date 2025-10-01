@@ -4,18 +4,49 @@ Python application to analyze real-time feed records, verify data integrity, and
 
 ## Problem Statement
 
-This project analyzes a JSON lines file containing real-time feed data. Each record belongs to a story (RP_DOCUMENT_ID) and has an index (DOCUMENT_RECORD_INDEX) along with the total expected count (DOCUMENT_RECORD_COUNT).
+This project analyzes a JSON Lines (.jsonl) file containing real-time feed data. Each record belongs to a story (RP_DOCUMENT_ID) and has:
 
-The goal is to:
+DOCUMENT_RECORD_INDEX — the position of this record within the story
 
-- Count how many distinct stories appear in the feed.
+DOCUMENT_RECORD_COUNT — total expected analytics records for the story
 
-- Spot stories that are missing analytics records.
+RP_ENTITY_ID — an entity ID that must follow a valid format
 
-- Check that RP_ENTITY_ID values follow the correct format.
+The goals of this project are to:
+
+Count the total number of distinct stories in the feed.
+
+Detect stories that are missing analytics records.
+
+Validate that RP_ENTITY_ID values conform to the expected format.
 
 ## How the Script Works
+The script performs the following:
 
-1.Count distinct stories
-2.Find missing analytics
-3.Validation
+Count Distinct Stories
+
+Reads all records and counts unique RP_DOCUMENT_ID values.
+
+Detect Missing Analytics
+
+Checks if each story has all expected DOCUMENT_RECORD_INDEX values based on DOCUMENT_RECORD_COUNT.
+
+Reports which indices are missing per story.
+
+Validate RP_ENTITY_ID Values
+
+Uses a regex pattern (alphanumeric + underscores) to validate IDs.
+
+Reports any invalid IDs.
+
+## How to run 
+Make sure you have Python 3.12 installed.
+
+Place your feed file in the project directory (e.g., sample.jsonl).
+
+Run the script:
+```
+python analyze_feed.py sample.jsonl
+```
+
+If no file is provided, the script defaults to sample.jsonl.
