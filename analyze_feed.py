@@ -1,5 +1,6 @@
 import json
 import sys
+import re
 from collections import defaultdict
 
 
@@ -30,8 +31,19 @@ class StoryTracker:
         return missing
 
 
+class EntityValidator:
+    def __init__(self, pattern=r"^[A-Z0-9_-]+$"):
+        self.pattern = re.compile(pattern)
+
+    def is_valid(self, entity_id):
+        return bool(self.pattern.match(entity_id))
+
+
 def process_file(filename):
     tracker = StoryTracker()
+    validator = EntityValidator()
+
+    invalid_entities = []
 
     with open(filename, "r") as f:
         for line in f:
@@ -39,12 +51,17 @@ def process_file(filename):
                 record = json.loads(line)
             except json.JSONDecodeError:
                 continue
+
             tracker.add_record(record)
+
+            entity_id = record.get("RP_ENTITY_ID")
+            if entity_id and not validator.is_valid(entity_id):
+                invalid_entities.append(entity_id)
 
     total_stories = len(tracker.stories)
     missing_analytics = tracker.report_missing()
 
-    return total_stories, missing_analytics
+    return total_stories, missing_analytics, invalid_entities
 
 
 if __name__ == "__main__":
@@ -53,12 +70,19 @@ if __name__ == "__main__":
         sys.exit(1)
 
     file_path = sys.argv[1]
-    total, missing = process_file(file_path)
+    total, missing, invalids = process_file(file_path)
 
     print(f"Total distinct stories: {total}")
     print("\nStories with missing analytics:")
     if missing:
         for doc, miss in missing.items():
             print(f" - {doc}: missing {miss}")
+    else:
+        print(" None")
+
+    print("\nInvalid RP_ENTITY_ID values:")
+    if invalids:
+        for val in invalids:
+            print(f" - {val}")
     else:
         print(" None")
