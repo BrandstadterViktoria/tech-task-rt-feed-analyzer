@@ -97,7 +97,7 @@ def print_report(total, missing, invalids):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        file_path = "rt-feed-record"
+        file_path = "sample.jsonl"
         print(f"No input file provided, using default: {file_path}")
     else:
         file_path = sys.argv[1]
