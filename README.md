@@ -50,3 +50,23 @@ python analyze_feed.py sample.jsonl
 ```
 
 If no file is provided, the script defaults to sample.jsonl.
+
+
+## Run with Docker
+
+Build the Docker image:
+```
+docker build -t feed-analyzer .
+```
+
+Run the container with the default feed file:
+```
+docker run --rm feed-analyzer
+```
+
+To specify a different input file, mount your local folder and provide the filename:
+```
+docker run --rm -v C:/Users/vikto/Code/tech-task-rt-feed-analyzer:/app feed-analyzer python analyze_feed.py sample.jsonl
+```
+
+-v <host_path>:<container_path> mounts your local folder inside the container so you can access your JSONL files without copying them into the image.
