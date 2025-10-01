@@ -1,110 +1,56 @@
 import json
-import sys
-import re
-import os
 from collections import defaultdict
+import re
+import sys
 
+input_file = sys.argv[1] if len(sys.argv) > 1 else "sample.jsonl"
 
-class StoryTracker:
-    def __init__(self):
-        self.stories = defaultdict(lambda: {"expected": None, "seen": set()})
+ENTITY_ID_PATTERN = re.compile(r"^[A-Z0-9_]+$")
 
-    def add_record(self, record):
+stories = defaultdict(list)
+invalid_entity_ids = []
+
+# process data
+with open(input_file, "r", encoding="utf-8") as f:
+    for line in f:
+        record = json.loads(line)
         doc_id = record.get("RP_DOCUMENT_ID")
-        idx = record.get("DOCUMENT_RECORD_INDEX")
-        total = record.get("DOCUMENT_RECORD_COUNT")
+        entity_id = record.get("RP_ENTITY_ID")
+        record_index = record.get("DOCUMENT_RECORD_INDEX")
+        record_count = record.get("DOCUMENT_RECORD_COUNT")
 
-        if doc_id is None or idx is None or total is None:
-            return
+        # analytics
+        stories[doc_id].append(record_index)
 
-        if self.stories[doc_id]["expected"] is None:
-            self.stories[doc_id]["expected"] = total
-
-        self.stories[doc_id]["seen"].add(idx)
-
-    def report_missing(self):
-        missing = {}
-        for doc_id, info in self.stories.items():
-            expected = set(range(info["expected"]))
-            seen = info["seen"]
-            if seen != expected:
-                missing[doc_id] = sorted(expected - seen)
-        return missing
+        # validate RP_ENTITY_ID
+        if not ENTITY_ID_PATTERN.match(str(entity_id)):
+            invalid_entity_ids.append(entity_id)
 
 
-class EntityValidator:
-    def __init__(self, pattern=r"^[A-Z0-9_-]+$"):
-        self.pattern = re.compile(pattern)
+print(f"📊 Total distinct stories: {len(stories)}\n")
 
-    def is_valid(self, entity_id):
-        return bool(self.pattern.match(entity_id))
-
-
-def process_file(filename):
-    tracker = StoryTracker()
-    validator = EntityValidator()
-    invalid_entities = []
-
-    try:
-        with open(filename, "r", encoding="utf-8") as f:
-            for line in f:
-                try:
-                    record = json.loads(line)
-                except json.JSONDecodeError:
-                    continue  # skip malformed lines
-
-                tracker.add_record(record)
-
-                entity_id = record.get("RP_ENTITY_ID")
-                if entity_id and not validator.is_valid(entity_id):
-                    invalid_entities.append(entity_id)
-    except FileNotFoundError:
-        print(f"❌ Error: File '{filename}' not found.")
-        sys.exit(1)
-    except OSError as e:
-        print(f"❌ Error opening file '{filename}': {e}")
-        sys.exit(1)
-
-    total_stories = len(tracker.stories)
-    missing_analytics = tracker.report_missing()
-
-    return total_stories, missing_analytics, invalid_entities
-
-
-def print_report(total, missing, invalids):
-    print(f"\n📊 Total distinct stories: {total}")
-
-    print("\n🔍 Stories with missing analytics:")
+# missing analytic
+missing_analytics = {}
+for doc_id, indices in stories.items():
+    indices_set = set(indices)
+    expected_count = max(indices_set) + 1  # DOCUMENT_RECORD_COUNT could also be used
+    missing = [i for i in range(expected_count) if i not in indices_set]
     if missing:
-        print(f" Total with issues: {len(missing)}")
-        for doc, miss in list(missing.items())[:5]:
-            print(f" - {doc}: missing {miss}")
-        if len(missing) > 5:
-            print(f" ... and {len(missing) - 5} more")
-    else:
-        print(" None")
+        missing_analytics[doc_id] = missing
 
-    print("\nInvalid RP_ENTITY_ID values:")
-    if invalids:
-        print(f" Total invalid: {len(invalids)}")
-        for val in invalids[:5]:
-            print(f" - {val}")
-        if len(invalids) > 5:
-            print(f" ... and {len(invalids) - 5} more")
-    else:
-        print(" None")
+print("🔍 Stories with missing analytics:")
+if missing_analytics:
+    print(f" Total with issues: {len(missing_analytics)}")
+    for doc, missing in missing_analytics.items():
+        print(f" - {doc}: missing {missing}")
+else:
+    print(" None")
 
-
-if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        file_path = "sample.jsonl"
-        print(f"No input file provided, using default: {file_path}")
-    else:
-        file_path = sys.argv[1]
-
-    if not os.path.exists(file_path):
-        print(f"Error: File '{file_path}' does not exist.")
-        sys.exit(1)
-
-    total, missing, invalids = process_file(file_path)
-    print_report(total, missing, invalids)
+# Invalid RP_ENTITY_IDs
+print("\nInvalid RP_ENTITY_ID values:")
+if invalid_entity_ids:
+    print(f" Total invalid: {len(invalid_entity_ids)}")
+    for invalid_id in invalid_entity_ids:
+        print(f" - {invalid_id}")
+else:
+    print(" None")
