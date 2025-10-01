@@ -1,10 +1,50 @@
 import json
 import sys
+from collections import defaultdict
+
+
+class StoryTracker:
+    def __init__(self):
+        self.stories = defaultdict(lambda: {"expected": None, "seen": set()})
+
+    def add_record(self, record):
+        doc_id = record.get("RP_DOCUMENT_ID")
+        idx = record.get("DOCUMENT_RECORD_INDEX")
+        total = record.get("DOCUMENT_RECORD_COUNT")
+
+        if doc_id is None or idx is None or total is None:
+            return
+
+        if self.stories[doc_id]["expected"] is None:
+            self.stories[doc_id]["expected"] = total
+
+        self.stories[doc_id]["seen"].add(idx)
+
+    def report_missing(self):
+        missing = {}
+        for doc_id, info in self.stories.items():
+            expected = set(range(info["expected"]))
+            seen = info["seen"]
+            if seen != expected:
+                missing[doc_id] = sorted(expected - seen)
+        return missing
 
 
 def process_file(filename):
-    # logic will be added in the next commit
-    return 0, {}
+    tracker = StoryTracker()
+
+    with open(filename, "r") as f:
+        for line in f:
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            tracker.add_record(record)
+
+    total_stories = len(tracker.stories)
+    missing_analytics = tracker.report_missing()
+
+    return total_stories, missing_analytics
 
 
 if __name__ == "__main__":
