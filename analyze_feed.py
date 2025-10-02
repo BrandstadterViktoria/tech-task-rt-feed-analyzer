@@ -7,7 +7,7 @@ input_file = sys.argv[1] if len(sys.argv) > 1 else "sample.jsonl"
 
 ENTITY_ID_PATTERN = re.compile(r"^[A-Z0-9_]+$")
 
-stories = defaultdict(list)
+stories = defaultdict(lambda: {"indices": [], "expected_count": None})
 invalid_entity_ids = []
 
 # process data
@@ -20,7 +20,8 @@ with open(input_file, "r", encoding="utf-8") as f:
         record_count = record.get("DOCUMENT_RECORD_COUNT")
 
         # analytics
-        stories[doc_id].append(record_index)
+        stories[doc_id]["indices"].append(record_index)
+        stories[doc_id]["expected_count"] = record_count
 
         # validate RP_ENTITY_ID
         if not ENTITY_ID_PATTERN.match(str(entity_id)):
@@ -29,14 +30,16 @@ with open(input_file, "r", encoding="utf-8") as f:
 
 print(f"📊 Total distinct stories: {len(stories)}\n")
 
-# missing analytic
+# missing analytics
 missing_analytics = {}
-for doc_id, indices in stories.items():
-    indices_set = set(indices)
-    expected_count = max(indices_set) + 1  # DOCUMENT_RECORD_COUNT could also be used
-    missing = [i for i in range(expected_count) if i not in indices_set]
-    if missing:
-        missing_analytics[doc_id] = missing
+for doc_id, data in stories.items():
+    indices_set = set(data["indices"])
+    expected_count = data["expected_count"]
+
+    if expected_count is not None:
+        missing = [i for i in range(expected_count) if i not in indices_set]
+        if missing:
+            missing_analytics[doc_id] = missing
 
 print("🔍 Stories with missing analytics:")
 if missing_analytics:
